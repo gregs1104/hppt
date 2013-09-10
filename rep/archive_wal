@@ -1,0 +1,207 @@
+#!/bin/bash -x
+
+# archive_wal
+# See usage output from -h option for details.
+#
+# The PostgreSQL manual suggests that archive_command scripts can show
+# errors and other notes by writing to their standard output.  That is
+# not true if you are using syslog.  This program wraps output in a
+# few ways such that you can get identical styles of logging regardless
+# of output method.  The main option is to use "-s" to turn on syslog
+# output.
+#
+# This example archives with the syslog format output:
+# 
+#   archive_command="archive_wal -s -H db2 -d /var/lib/pgsql/archive %p %f"
+#
+# It's recommended to put "-s" early in the commend line, so that error
+# messages even during options parsing can be directed to syslog.
+#
+# Copyright 2012-2013 Gregory Smith gsmith@westnet.com
+
+usage()
+{
+cat << EOF
+usage: $0 -d ARCHIVEDIR destination PATH FILENAME [options]
+
+archive_command script with extra logging options.  One of either
+"-H" or "-l" is required.
+
+OPTIONS:
+   -d      Set destination archive directory (required)
+   -l      Save files to a local directory.
+   -H      Set destination host.  Required unless -l is used.
+
+   -h      Show this message
+   -t      Test mode.  Process parameters and simulate activity only.
+   -s      Turn on syslog logging
+   -c      Check length of the file after it's written
+   -f      Set syslog facility.  Defaults to 'local0'
+EOF
+}
+
+
+#======================================================================
+# Options parsing and logger setup
+#======================================================================
+
+# Wrapper for echo to stderr.  Lines written there go into the PostgreSQL
+# log if the logging collector is capturing the archiver process's output
+echoerr() { echo "$@" 1>&2; } 
+
+# Defaults for command line options
+DESTHOST=
+ARCHIVEDIR=
+SYSLOG=
+FACILITY="local0"
+STDOUT="echo"
+STDERR="echoerr"
+WALSIZE="16777216"
+LOCAL=
+SCRIPT=$( basename $0 )
+CHECKLEN=
+FILESIZE=
+
+# Options parsing
+while getopts "hlstcf:H:d:" OPTION; do
+  case $OPTION in
+    h)
+        usage
+        exit 1
+        ;;
+    l)
+        LOCAL=1
+        ;;
+    s)
+        SYSLOG=1
+        # TODO The STDERR level is right.  There should be another
+        # level for the STDOUT one though, one that doesn't appear
+        # by default in a typical Linux installation.
+        STDOUT="logger -p $FACILITY.notice -s -i $SCRIPT "
+        STDERR="logger -p $FACILITY.notice -s -i $SCRIPT "
+        ;;
+    t)
+        TEST=1
+        ;;
+    c)
+        CHECKLEN=1
+        ;;
+    f)
+        FACILITY=$OPTARG
+        ;;
+    H)
+        DESTHOST=$OPTARG
+        ;;
+    d)
+        ARCHIVEDIR=$OPTARG
+        ;;
+    \?)
+        $STDERR "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;        
+  esac
+done
+shift $(( OPTIND - 1 ))
+
+#======================================================================
+# Validate input parameters
+#======================================================================
+
+# When in test mode, show what was parsed before any validation
+if [ -n "$TEST" ] ; then
+  if [ -n "$LOCAL" ] ; then
+    $STDERR Copy $1 to local destination $ARCHIVEDIR/$2
+  else
+    $STDERR Copy $1 to destination $DESTHOST:$ARCHIVEDIR/$2
+  fi
+  $STDERR "STDOUT output via:  $STDOUT"
+  $STDERR "STDERR output via:  $STDERR"
+fi
+
+if [ -z "$1" ] ; then
+  $STDERR "Missing path of file to archive"
+  exit 1
+fi
+
+if [ -z "$2" ] ; then
+  $STDERR "Missing name of file to archive"
+  exit 1
+fi
+
+if [ -z "$ARCHIVEDIR" ] ; then
+  $STDERR "Missing destination archive directory"
+  exit 1
+fi
+
+if [ -n "$LOCAL" ] ; then
+  DEST=""
+else
+  if [ -z "$DESTHOST" ] ; then
+    $STDERR "Need to either specify a local copy or provide a destination host"
+    exit 1
+  fi
+  DEST="$DESTHOST:"
+fi
+
+if [ ! -f "$1" ] ; then
+  $STDERR "File to archive $1 is missing"
+  exit 2
+fi
+
+#======================================================================
+# Sanity check on the file and then save it
+#======================================================================
+
+# Check if this is a WAL file or something else, such as a history or
+# timeline change file.  The assumption is that all other types of files
+# will have a "." and some sort of extension in their names.  Regular
+# 16MB WAL files have no "." in their name at all.
+
+DOTPOS=`expr index "$2" "."`
+if [ $DOTPOS eq 0 ] ; then
+  # No dot in the file, must be a regular WAL file.
+  # Sanity check on file size, to never copy a partial WAL file
+  FILESIZE=$(du -b "$1" | cut -f 1)
+  if [ "$FILESIZE" -ne "$WALSIZE" ] ; then
+    $STDERR "Wrong size for WAL file $1 size=$FILESIZE expected=$WALSIZE"
+    exit 3
+  fi
+fi
+
+# Archive the file
+if [ -n "$TEST" ] ; then
+  $STDERR "simulate copy $1 to ${DEST}$ARCHIVEDIR/$2"
+else
+  $STDERR "archiving $1 to ${DEST}$ARCHIVEDIR/$2"
+  rsync -av $1 ${DEST}$ARCHIVEDIR/$2
+  RCEXIT=$?
+  if [ $RCEXIT -ne 0 ] ; then
+    $STDERR "rsync failed with error code $RCEXIT"
+    exit 4
+  fi
+
+  # When requested, check if the length of the destination file matches    
+  if [ -n "$CHECKLEN" ] ; then
+    # The original filesize is normally set already by this point,
+    # optimize away looking it up in that case
+    if [ -z "$FILESIZE" ] ; then
+      FILESIZE=$(du -b "$1" | cut -f 1)
+    fi
+
+    # Find the size of the destination file
+    if [ -n "$LOCAL" ] ; then
+      DESTSIZE=$(du -b $ARCHIVEDIR/$2 | cut -f 1)
+    else
+      DESTSIZE=$(ssh $DESTHOST du -b $ARCHIVEDIR/$2 | cut -f 1)
+    fi
+
+    if [ "$FILESIZE" -ne "$DESTSIZE" ] ; then
+      $STDERR archived size mismatch on $2 original=$FILESIZE destination=$DESTSIZE
+      exit 5
+    fi
+  fi
+
+fi
+
+exit 0
+

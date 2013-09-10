@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# report_hotspot
+#
+# Show pgstatio data for both tables and indexes. Reports on the difference between
+# the earliest and last data collected.
+#
+# Copyright 2013 Gregory Smith gsmith@westnet.com
+
+# TODO Parameterize
+db="dbXX"
+
+# Order by table reads
+psql -d $db -c "
+SELECT * FROM
+
+(
+SELECT * FROM
+
+(
+SELECT
+  date_trunc('minute',collected :: timestamp),
+  collected - lag(collected)
+    OVER (PARTITION BY tbl_space,nspname,tablename,indexname)
+    AS period,
+  tbl_space,
+  tablename,
+  indexname,
+  size,
+  rel_blks_read - lag(rel_blks_read)
+    OVER (PARTITION BY tbl_space,nspname,tablename,indexname)
+    AS rel_blks_read,
+  rel_blks_hit - lag(rel_blks_hit)
+    OVER (PARTITION BY tbl_space,nspname,tablename,indexname)
+    AS rel_blks_hit,
+  rel_blks - lag(rel_blks)
+    OVER (PARTITION BY tbl_space,nspname,tablename,indexname)
+    AS rel_blks,
+  hit_pct
+FROM 
+
+(
+  -- Only return records from the first and last collection times
+  SELECT * FROM hotspot h
+    INNER JOIN
+        (SELECT min(collected) AS range FROM hotspot
+         UNION
+         SELECT max(collected)
+         FROM hotspot inside) AS times
+    ON times.range=h.collected 
+) AS filtered
+
+ORDER BY collected DESC
+) AS sub1
+
+WHERE rel_blks > 0
+
+ORDER BY rel_blks_read DESC LIMIT 50
+) AS sub2
+
+ORDER BY tbl_space,rel_blks_read DESC
+"
+

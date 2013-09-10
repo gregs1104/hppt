@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# TODO Parameterize
+DB="dbXX"
+
+psql -d $DB -c "select 'IDLE' as state, procpid,now() - query_start as runtime,current_query from pg_stat_activity where query_start < (now() - '3 hours'::interval) and current_query='<IDLE>' order by query_start limit 40"
+
+psql -d $DB -At -q -c "select procpid from pg_stat_activity where query_start < (now() - '3 hours'::interval) and current_query='<IDLE>' order by query_start" | xargs echo
+
+

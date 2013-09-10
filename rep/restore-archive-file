@@ -1,0 +1,81 @@
+#!/bin/bash
+# recovery_command worker script
+#
+# For use with streaming replication against a permanent archive that we
+# do not try to clean up here.  It also knows how to pull archives
+# from a remote repo too, one at a time.
+#
+# Copyright 2012-2013 Gregory Smith gsmith@westnet.com
+#
+# Being called with '%f %p %r'
+# Translation list:  %f=$1  %p=$2  $r=$3
+
+# TODO Make these directory locations command line parameters
+
+# This archive has to exist locally, even if it's empty
+ARCHIVE="/var/lib/postgresql/9.1/archive"
+
+# Comment REMOTE out if there is no remote archive
+REMOTE="postgres@dbXX:9.1/archive"
+
+# CREMOTE = Location of compresses archives.  It can match REMOTE.  Just be
+# very careful not to compress files that are still being replayed,
+# or you might get a partial transfer when this script runs.
+CREMOTE="postgres@dbXX:9.1/archive"
+
+# So far this is just for logging purposes
+ARCHIVE_HOST="dbXX"
+
+if [ ! -d "$ARCHIVE" ] ; then
+  echo Missing archive directory $ARCHIVE
+  exit 1
+fi
+
+echo Restart point is now $3
+
+if [ ! -f "$ARCHIVE/$1" ] ; then
+  #echo No local archive file to recover $ARCHIVE/$1
+  if [ -n "$REMOTE" ] ; then
+    echo Trying to copy from ${ARCHIVE_HOST}:$1 to $2
+    # Try to be consistent about using "-c" to compress transfers only
+    # in situations where the file isn't expected to be compressed with gzip
+    # already
+    rsync -avc $REMOTE/$1 $2
+    rc=$?
+    if [ $rc -eq 0 ] ; then
+      ls -l $2
+      exit $rc
+    fi
+    # Try the alternate location, and look for a compressed file
+    echo Trying to copy from ${ARCHIVE_HOST}:$1.gz to $2
+    rsync -av $CREMOTE/$1.gz $2.gz
+    rc=$?
+    if [ $rc -eq 0 ] ; then
+      echo File $CREMOTE/$1.gz copied over to $2.gz
+      gunzip -v $2.gz
+      rc=$?
+      if [ $rc -ne 0 ] ; then
+        echo Failed to uncompress remote file $CREMOTE/$1.gz error return code $rc
+        exit 4
+      fi
+      if [ ! -f $2 ] ; then
+        echo Destination file $2 is missing after decompression
+        exit 5
+      fi
+      exit 0
+    fi
+    echo Failed to find remote file $CREMOTE/1.gz error return code $rc
+    exit 3
+  fi
+  exit 2
+fi
+
+# TODO The above loop could be de-indented if I checked for existence of this
+# file and just deal with it first
+cp -i $ARCHIVE/$1 $2
+rc=$?
+if [ "$rc" -ne 0 ] ; then
+    echo archive cp error for $ARCHIVE/$1 to $2 return code $rc
+fi
+exit $rc
+

@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# Script to call as an archive_cleanup_command.  Rather than doing anything,
+# simply log the latest restart point using syslog
+#
+# Normally scripts liket his are called with this sort of example:
+#
+#archive_cleanup_command = 'pg_archivecleanup /mnt/server/archivedir %r'
+#
+# To try and make switching between real cleanup like that and this simple
+# logging easier, this script will take a directory to cleanup and a
+# restartpoint.  It only cares about the second parameter though.
+#
+# Copyright 2012 Gregory Smith gsmith@westnet.com
+
+# TODO Figure out the master by parsing the recovery.conf file,
+# or as another input parameter.
+MASTER="dbXX"
+
+# TODO Make this an input parameter
+DB="dbXX"
+
+ARCHIVE="$1"
+RESTART="$2"
+
+SCRIPT=$( basename $0 )
+FACILITY="local0"
+STDERR="logger -p $FACILITY.notice -s -i $SCRIPT "
+
+if [ -z "$2" ] ; then
+  $STDERR usage:  $0 ARCHIVEDIR restartpoint
+  exit 1
+fi
+
+$STDERR Restartpoint is now $RESTART
+
+HOST=`hostname`
+
+if [ "$MASTER" = "$HOST" ] ; then
+  echo Running on master $MASTER, aborting
+  exit 0
+fi
+
+# These two will fail when the standby is starting, because queries aren't accepted yet.
+# Check for errors and substitute an empty string when they happen.
+
+RECEIVE=`psql -At -q -c "SELECT pg_last_xlog_receive_location()"`
+RC=$?
+if [ $RC -eq 0 ] ; then
+  # Receive will also be blank, but *not* return an error code, when run against a log shipping system
+  if [ -n "$RECEIVE" ] ; then
+    RECEIVE_FILE=`ssh postgres@$MASTER psql -At -q -c " \"select  pg_xlogfile_name('$RECEIVE')\" "`
+  fi
+fi
+
+REPLAY=`psql -At -q -c "SELECT pg_last_xlog_replay_location()"`
+RC=$?
+if [ $RC -eq 0 ] ; then
+  REPLAY_FILE=`ssh postgres@$MASTER psql -At -q -c " \"select  pg_xlogfile_name('$REPLAY')\" "`
+fi
+
+REPLAY_TIME=`psql -At -q -c "SELECT pg_last_xact_replay_timestamp()"`
+# Timestamp values can't be empty strings
+if [ -z "$REPLAY_TIME" ] ; then
+  REPLAY_TIME="null"
+else
+  REPLAY_TIME="'$REPLAY_TIME'"
+fi
+
+ssh postgres@$MASTER psql -d $DB -c "\"INSERT INTO pgrepmon.archive_log VALUES (current_timestamp,'$MASTER','$HOST','$HOST','$RECEIVE_FILE','$REPLAY_FILE',$REPLAY_TIME::timestamp,'$RESTART')\" "
+
+exit 0

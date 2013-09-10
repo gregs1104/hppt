@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+# Compress old WAL files
+#
+set -o nounset
+
+# where are the WALs?
+ARCHIVE_DIR="/wal2"
+
+# how many minutes to leave alone?
+MOD_MINS=240
+
+# default debug to off (cli opt later to enable it)
+DEBUG=0
+
+#######################################################################
+#
+# don't run more than one copy
+#
+ME=$(basename $0)
+if [ $(pgrep -fc $ME) -gt 2 ]; then
+  [ $DEBUG -gt 0 ] && echo "*** Another copy of '$ME' is running...exiting"
+  exit 88
+fi
+
+#######################################################################
+#
+# make sure we have an archive dir
+#
+if [ ! -d $ARCHIVE_DIR ] ; then
+  echo "*** Did not find archive directory: '$ARCHIVE_DIR'"
+  exit 2
+fi
+
+#######################################################################
+#
+# more robust argument handling
+#
+while getopts ":d" opt; do
+  case $opt in
+    d)
+      DEBUG=1
+    ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+    ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+    ;;
+  esac
+done
+
+#######################################################################
+#
+# check if we're running in a terminal - otherwise disable verbosity
+#
+if [ -t 1 ]; then
+  VERBOSE="-v"
+else
+  VERBOSE=""
+fi
+
+#######################################################################
+#
+# do the work
+#
+# Old and not very useful pipeline
+#find 9.1/archive -mtime +1 -exec gzip -v {} \;
+
+# Good pipeline, but leaves entire last day alone
+#find 9.1/archive -mtime +1 | grep -v gz | xargs --max-args=100 gzip -v
+
+# Pipeline that only avoids last 4 hours
+if [ $DEBUG -gt 0 ]; then
+  find $ARCHIVE_DIR -ignore_readdir_race -mmin +${MOD_MINS} | grep -v gz
+else
+  find ${ARCHIVE_DIR} -ignore_readdir_race -mmin +${MOD_MINS} | grep -v gz | xargs --max-args=100 gzip ${VERBOSE}
+fi

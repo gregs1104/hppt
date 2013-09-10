@@ -1,0 +1,87 @@
+#!/bin/bash
+
+#
+# Tablespace usage mapper
+#
+# Copyright 2012-2013 Gregory Smith gsmith@westnet.com
+
+# TODO Parameterize
+DB="dbXX"
+
+# Indexes on high write relations
+psql -d $DB -c "
+SELECT
+  TS.spcname tbl_space,
+--  schemaname as nspname,
+  i.relname,
+  i.indexrelname,
+  i.idx_scan,
+  pg_size_pretty(pg_relation_size(i.indexrelid)) AS index_size,
+  pg_stat_get_tuples_returned(indrelid) AS n_tup_read,
+  pg_stat_get_tuples_inserted(indrelid) + pg_stat_get_tuples_updated(indrelid) +
+    pg_stat_get_tuples_deleted(indrelid) AS n_tup_write,
+  CASE WHEN (pg_stat_get_tuples_returned(indrelid) + pg_stat_get_tuples_inserted(indrelid) + pg_stat_get_tuples_updated(indrelid) +
+ pg_stat_get_tuples_deleted(indrelid)) > 0 then
+  100 * pg_stat_get_tuples_returned(indrelid)  / (pg_stat_get_tuples_returned(indrelid) + pg_stat_get_tuples_inserted(indrelid) + pg_stat_get_tuples_updated(indrelid) +
+    pg_stat_get_tuples_deleted(indrelid)) 
+  ELSE 0 END AS read_pct
+FROM
+  pg_stat_user_indexes i
+  JOIN pg_index USING (indexrelid)
+  JOIN pg_class C ON (C.oid = indexrelid)
+  LEFT JOIN
+    pg_tablespace TS ON (C.reltablespace = TS.oid)
+ORDER BY 
+  pg_stat_get_tuples_inserted(indrelid) + pg_stat_get_tuples_updated(indrelid) +
+  pg_stat_get_tuples_deleted(indrelid) DESC
+LIMIT 100;
+"
+
+# Indexes on high read relations
+psql -d $DB -c "
+SELECT
+  TS.spcname tbl_space,
+--  schemaname as nspname,
+  i.relname,
+  i.indexrelname,
+  i.idx_scan,
+  pg_size_pretty(pg_relation_size(i.indexrelid)) AS index_size,
+  pg_stat_get_tuples_returned(indrelid) AS n_tup_read,
+  pg_stat_get_tuples_inserted(indrelid) + pg_stat_get_tuples_updated(indrelid) +
+    pg_stat_get_tuples_deleted(indrelid) AS n_tup_write
+FROM
+  pg_stat_user_indexes i
+  JOIN pg_index USING (indexrelid)
+  JOIN pg_class C ON (C.oid = indexrelid)
+  LEFT JOIN
+    pg_tablespace TS ON (C.reltablespace = TS.oid)
+ORDER BY 
+  pg_stat_get_tuples_returned(indrelid)
+  DESC LIMIT 50;
+"
+
+# Top users of disk space
+psql -d $DB -c "
+SELECT
+  TS.spcname tbl_space,
+  C.relname AS relation,
+  CASE WHEN C.relkind='r' THEN 'Table' WHEN C.relkind='v' THEN 'View'
+    WHEN C.relkind='i' THEN 'Index' WHEN C.relkind='S' THEN 'Sequence'
+    WHEN C.relkind='s' THEN 'Special'
+-- TODO Add 'toast' to other relkind decoding scripts
+    WHEN C.relkind='t' THEN 'Toast'
+    ELSE lower(C.relkind) END AS \"type\",
+  pg_size_pretty(pg_relation_size(C.oid)) AS size,
+  pg_relation_size(C.oid) AS bytes,
+
+  pg_stat_get_tuples_returned(C.oid) AS n_tup_read,
+  pg_stat_get_tuples_inserted(C.oid) AS n_tup_ins,
+  pg_stat_get_tuples_updated(C.oid) AS n_tup_upd,
+  pg_stat_get_tuples_deleted(C.oid) AS n_tup_del
+FROM
+  pg_class C
+LEFT JOIN
+  pg_tablespace TS ON (C.reltablespace = TS.oid)
+ORDER BY bytes DESC
+--LIMIT 100
+"

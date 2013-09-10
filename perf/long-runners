@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Copyright 2013 Gregory Smith gsmith@westnet.com
+
+# TODO Parameterize
+DB="dbXX"
+
+psql -d $DB -c "select '!IDLE' as state, procpid,now() - query_start as runtime,current_query from pg_stat_activity where current_query!='<IDLE>' order by query_start limit 20"
+
+psql -d $DB -c "select 'IDLE' as state, procpid,now() - query_start as runtime,current_query from pg_stat_activity where current_query='<IDLE>' order by query_start limit 40"
+

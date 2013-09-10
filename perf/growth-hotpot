@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# TODO Parameterize
+DB="dbXX"
+
+psql -d $DB -c "
+SELECT tbl_space,tablename,indexname,
+pg_size_pretty(min(size)::int8) as min,pg_size_pretty(max(size)::int8) as max,pg_size_pretty((max(size)-min(size))::int8) as diff
+FROM hotspot
+GROUP BY tbl_space,tablename,indexname
+ORDER BY max(size) - min(size) DESC
+LIMIT 30
+"

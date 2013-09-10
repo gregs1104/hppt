@@ -1,0 +1,146 @@
+#!/bin/bash
+
+# cleanup-status
+#
+# Report on tables with many dead rows, ones that are approaching
+# xid wraparound, and show active sessions that are relevant to
+# autovacuum activity.
+#
+# Compatible with PostgreSQL versions up to 9.1.  The activity information
+# in this version will not work with PostgreSQL 9.2.
+#
+# Copyright 2012 Gregory Smith greg@2ndquadrant.com
+# Licensed for use only by 2ndQuadrant customers
+
+echo === Tables with many dead rows ===
+
+psql -c "
+SELECT 
+  nspname,
+  relname,n_dead_tup::numeric,
+  reltuples::numeric,
+  pg_size_pretty(pg_relation_size(oid)) as table_sz,
+  pg_size_pretty(pg_total_relation_size(oid)) as total_sz,
+  last_vacuum,
+  last_analyze,
+  n_dead_tup > av_threshold AS "av_needed",
+  CASE WHEN reltuples > 0
+    THEN round(100.0 * n_dead_tup / (reltuples))
+    ELSE 0
+    END
+      AS pct_dead
+FROM
+(SELECT
+  c.oid,
+  N.nspname,
+  C.relname,
+  pg_stat_get_tuples_inserted(C.oid) AS n_tup_ins,
+  pg_stat_get_tuples_updated(C.oid) AS n_tup_upd,
+  pg_stat_get_tuples_deleted(C.oid) AS n_tup_del,
+  pg_stat_get_live_tuples(C.oid) AS n_live_tup,
+  pg_stat_get_dead_tuples(C.oid) AS n_dead_tup,
+  C.reltuples AS reltuples,
+  round(current_setting('autovacuum_vacuum_threshold')::integer
+    + current_setting('autovacuum_vacuum_scale_factor')::numeric * C.reltuples)
+    AS av_threshold,
+  date_trunc('day',greatest(pg_stat_get_last_vacuum_time(C.oid),pg_stat_get_last_autovacuum_time(C.oid)))::date AS last_vacuum,
+  date_trunc('day',greatest(pg_stat_get_last_analyze_time(C.oid),pg_stat_get_last_analyze_time(C.oid)))::date AS last_analyze
+ FROM pg_class C
+  LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
+  WHERE C.relkind IN ('r', 't')
+    AND N.nspname NOT IN ('pg_catalog', 'information_schema') AND
+    N.nspname !~ '^pg_toast'
+) AS av
+WHERE n_dead_tup > 100000
+ORDER BY n_dead_tup DESC
+;
+"
+
+echo
+echo === Tables approaching wraparound ===
+
+psql  -c "
+SELECT 
+  nspname,
+  CASE WHEN relkind='t' THEN toastname ELSE relname END AS relname,
+  CASE WHEN relkind='t' THEN 'Toast' ELSE 'Table' END AS kind,
+  pg_size_pretty(pg_relation_size(oid)) as table_sz,
+  pg_size_pretty(pg_total_relation_size(oid)) as total_sz,
+  age(relfrozenxid),
+  last_vacuum
+FROM
+(SELECT
+  c.oid,
+  c.relkind,
+  N.nspname,
+  C.relname,
+  T.relname AS toastname,
+  C.relfrozenxid,
+  date_trunc('day',greatest(pg_stat_get_last_vacuum_time(C.oid),pg_stat_get_last_autovacuum_time(C.oid)))::date AS last_vacuum,
+  setting::integer as freeze_max_age
+ FROM pg_class C
+  LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
+  LEFT OUTER JOIN pg_class T ON (C.oid=T.reltoastrelid),
+  pg_settings
+  WHERE C.relkind IN ('r', 't')
+-- We want toast items to appear in the wraparound list
+    AND N.nspname NOT IN ('pg_catalog', 'information_schema') AND
+    name='autovacuum_freeze_max_age'
+    AND pg_relation_size(c.oid)>0
+) AS av
+WHERE age(relfrozenxid) > (0.85 * freeze_max_age)
+ORDER BY age(relfrozenxid) DESC, pg_total_relation_size(oid) DESC
+;
+"
+
+echo
+echo === Long running sessions ===
+psql -c "
+SELECT
+  case WHEN current_query='<IDLE>' then 'IDLE' else '' end as state,
+  procpid,
+  now() - query_start as runtime,
+  current_query
+from pg_stat_activity
+where query_start < (now() - '3 hours'::interval) order by query_start"
+
+echo
+echo === Tables with stale statistics ===
+psql -c "
+SELECT 
+  nspname,
+  relname,
+  last_vacuum,
+  last_analyze,
+  age(relfrozenxid)
+FROM
+(SELECT
+  c.oid,
+  N.nspname,
+  C.relname,
+  date_trunc('day',greatest(pg_stat_get_last_vacuum_time(C.oid),pg_stat_get_last_autovacuum_time(C.oid)))::date AS last_vacuum,
+  date_trunc('day',greatest(pg_stat_get_last_analyze_time(C.oid),pg_stat_get_last_autoanalyze_time(C.oid)))::date AS last_analyze,
+  C.relfrozenxid
+ FROM pg_class C
+  LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
+  WHERE C.relkind IN ('r', 't') AND
+    (NOT N.nspname IN ('pg_catalog', 'information_schema')) AND
+    N.nspname !~ '^pg_toast' AND
+    (greatest(pg_stat_get_last_analyze_time(C.oid),pg_stat_get_last_autoanalyze_time(C.oid)) IS NULL) OR (greatest(pg_stat_get_last_analyze_time(C.oid),pg_stat_get_last_autoanalyze_time(C.oid)) < (now() - '1 day'::interval - '1 hour'::interval))
+) AS av
+-- TODO The inner WHERE might exclude all these rows
+WHERE    (NOT nspname IN ('pg_catalog', 'information_schema'))
+ORDER BY last_analyze NULLS FIRST
+;
+"
+
+echo
+echo === Running vacuum, analyze, and rebuild sessions ===
+psql -c "
+select procpid,waiting,now() - query_start as runtime,current_query from pg_stat_activity where current_query ilike 'autovacuum%' or current_query ilike 'VACUUM%' or current_query ilike 'ANALYZE%' or current_query ilike 'CREATE INDEX%' or current_query ilike 'CREATE UNIQUE INDEX%' order by query_start
+"
+
+echo
+echo === Major autovacuum settings ===
+psql -c "SELECT name,setting,(setting = boot_val) AS default FROM pg_settings WHERE name ILIKE 'autovacuum%' OR name IN ('vacuum_cost_limit')"
+

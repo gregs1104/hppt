@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Copyright 2009-2013 Gregory Smith gsmith@westnet.com
+
+# TODO Parameterize
+db="dbXX"
+
+# Rank how much all indexes are used, looking for unused ones
+psql -d $db -c "
+SELECT
+  TS.spcname tbl_space,
+--  schemaname as nspname,
+  i.relname,
+  i.indexrelname,
+  i.idx_scan,
+  pg_size_pretty(pg_relation_size(i.indexrelid)) AS index_size,
+  indisunique,
+  indisprimary
+FROM
+  pg_stat_user_indexes i
+  JOIN pg_index USING (indexrelid)
+  JOIN pg_class C ON (C.oid = indexrelid)
+  LEFT JOIN
+    pg_tablespace TS ON (C.reltablespace = TS.oid)
+--WHERE
+--  indisunique IS false
+ORDER BY idx_scan,pg_relation_size(i.indexrelid) DESC;
+"

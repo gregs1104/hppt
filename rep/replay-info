@@ -1,0 +1,39 @@
+#!/bin/bash -x
+
+# WARNING:  Do not run this program on a live system!
+# This is an example/test program with lots of hard-coded
+# info.  log_restart is the production quality version.
+RESTART="0000000300002D8900000084"
+
+# TODO Figure this out by parsing the recovery.conf file.
+MASTER="dbXX"
+HOST=`hostname`
+DB="dbXX"
+
+if [ "$MASTER" = "$HOST" ] ; then
+  echo Running on master $MASTER, aborting
+  exit
+fi
+
+# These two will fail when the standby is starting, because queries aren't accepted yet.
+# Check for errors and substitute an empty string when they happen.
+
+RECEIVE=`psql -At -q -c "SELECT pg_last_xlog_receive_location()"`
+RC=$?
+if [ $RC -eq 0 ] ; then
+  # Receive will also be blank, but *not* return an error code, when run against a log shipping system
+  if [ -n "$RECEIVE" ] ; then
+    RECEIVE_FILE=`ssh postgres@$MASTER psql -At -q -c " \"select  pg_xlogfile_name('$RECEIVE')\" "`
+  fi
+fi
+
+REPLAY=`psql -At -q -c "SELECT pg_last_xlog_replay_location()"`
+RC=$?
+if [ $RC -eq 0 ] ; then
+  REPLAY_FILE=`ssh postgres@$MASTER psql -At -q -c " \"select  pg_xlogfile_name('$REPLAY')\" "`
+fi
+
+REPLAY_TIME=`psql -At -q -c "SELECT pg_last_xact_replay_timestamp()"`
+
+ssh postgres@$MASTER psql -d $DB -c "\"INSERT INTO pgrepmon.archive_log VALUES (current_timestamp,'$MASTER','$HOST','$HOST','$RECEIVE_FILE','$REPLAY_FILE','$REPLAY_TIME','$RESTART')\" "
+
