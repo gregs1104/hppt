@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# TODO This query is only for earlier versions of postgres that do not
+# have "state" as a separate field.  This should check the version
+# and have an alternate code path for newer ones.
+
+psql -c "
+SELECT
+    sum(CASE WHEN waiting THEN 1 ELSE 0 END) AS waiting,
+    sum(CASE WHEN current_query='<IDLE>' THEN 1 ELSE 0 END) AS idle,
+    sum(CASE WHEN current_query='<IDLE> in transaction' THEN 1 ELSE 0 END) AS idletransaction,
+    sum(CASE WHEN current_query='<insufficient privilege>' THEN 1 ELSE 0 END) as unknown,
+    sum(CASE WHEN NOT waiting AND current_query NOT IN ('<IDLE>', '<IDLE> in transaction', '<insufficient privilege>') THEN 1 ELSE 0 END) AS active
+FROM pg_stat_activity WHERE procpid != pg_backend_pid()
+--AND datname = 'dbXX'
+;
+"
