@@ -168,6 +168,11 @@ if [ $DOTPOS eq 0 ] ; then
   fi
 fi
 
+if [ -f ${DEST}$ARCHIVEDIR/$2 ] ; then
+  $STDERR File ${DEST}$ARCHIVEDIR/$2 already exists, refusing to archive it again
+  exit 4
+fi
+
 # Archive the file
 if [ -n "$TEST" ] ; then
   $STDERR "simulate copy $1 to ${DEST}$ARCHIVEDIR/$2"
@@ -177,7 +182,7 @@ else
   RCEXIT=$?
   if [ $RCEXIT -ne 0 ] ; then
     $STDERR "rsync failed with error code $RCEXIT"
-    exit 4
+    exit 5
   fi
 
   # When requested, check if the length of the destination file matches    
@@ -197,7 +202,7 @@ else
 
     if [ "$FILESIZE" -ne "$DESTSIZE" ] ; then
       $STDERR archived size mismatch on $2 original=$FILESIZE destination=$DESTSIZE
-      exit 5
+      exit 6
     fi
   fi
 

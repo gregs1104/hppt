@@ -33,6 +33,7 @@ FROM pg_class C
   WHERE C.relkind IN ('r', 't')
     AND N.nspname NOT IN ('pg_catalog', 'information_schema') AND
     N.nspname !~ '^pg_toast'
+    AND (pg_stat_get_live_tuples(C.oid) + pg_stat_get_dead_tuples(C.oid)) > 0
   ORDER BY 
    pg_stat_get_tuples_inserted(C.oid) + pg_stat_get_tuples_updated(C.oid) +
      pg_stat_get_tuples_deleted(C.oid) DESC
@@ -83,6 +84,7 @@ FROM pg_class C
   WHERE C.relkind IN ('r', 't')
     AND N.nspname NOT IN ('pg_catalog', 'information_schema') AND
     N.nspname !~ '^pg_toast'
+    AND (pg_stat_get_live_tuples(C.oid) + pg_stat_get_dead_tuples(C.oid)) > 0
 ) AS s
   ORDER BY 
    n_tup_write DESC
