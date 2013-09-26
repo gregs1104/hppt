@@ -1,0 +1,106 @@
+#!/bin/bash
+#
+# Report on the state of replication
+#
+# Copyright 2012-2013 Gregory Smith gsmith@westnet.com
+# Contributions from Matthew Cox <matt.cox@runkeeper.com>
+
+set -o nounset
+
+#################################################
+#
+# variables
+#
+MASTER="dbXX"
+DB="dbxx"
+PG_OPTS="-q -w -x -t"
+
+#################################################
+#
+# more robust argument handling
+#
+QUIET=0
+while getopts ":q" opt; do
+  case $opt in
+    q)
+      QUIET=1
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+
+SCRIPT=$(basename $0)
+if [ $QUIET -gt 0 ]; then
+  SCRIPT="$SCRIPT -q"
+else
+  PG_OPTS=""
+fi
+
+#################################################
+#
+# do it
+#
+if [ "$(hostname -s)" != "$MASTER" ]; then
+
+  ssh $MASTER "/var/lib/postgresql/scripts/$SCRIPT"
+else
+
+  if [ $QUIET -eq 0 ]; then
+    psql $PG_OPTS -d $DB -c "
+    SELECT
+    l.master_hostname, l.standby_hostname,
+    l.collected as last_update,
+    CASE
+      WHEN h.master_hostname = l.master_hostname AND l.standby_hostname = h.standby_hostname
+      THEN true ELSE false END AS active,
+     restart_point FROM
+    (
+    SELECT
+      standby_hostname,
+      max(collected) as collected
+    FROM pgrepmon.archive_log
+    GROUP BY standby_hostname
+    ) AS latest
+    JOIN pgrepmon.archive_log l ON (l.standby_hostname=latest.standby_hostname AND l.collected=latest.collected)
+    LEFT OUTER JOIN pgrepmon.rep_hosts h ON (h.master_hostname = l.master_hostname AND l.standby_hostname = h.standby_hostname)
+    ORDER BY master_hostname,standby_hostname,restart_point
+    ;
+    "
+  fi
+
+  psql $PG_OPTS -d $DB -c "
+  SELECT
+  master_hostname,min(restart_point) AS min_needed FROM
+  (
+  SELECT
+  l.master_hostname, l.standby_hostname,
+  l.collected as last_update,
+  CASE
+    WHEN h.master_hostname = l.master_hostname AND l.standby_hostname = h.standby_hostname
+    THEN true ELSE false END AS active,
+   restart_point FROM
+  (
+  SELECT
+    standby_hostname,
+    max(collected) as collected
+  FROM pgrepmon.archive_log
+  GROUP BY standby_hostname
+  ) AS latest
+  JOIN pgrepmon.archive_log l ON (l.standby_hostname=latest.standby_hostname AND l.collected=latest.collected)
+  LEFT OUTER JOIN pgrepmon.rep_hosts h ON (h.master_hostname = l.master_hostname AND l.standby_hostname = h.standby_hostname)
+  ORDER BY master_hostname,standby_hostname,restart_point
+  ) AS summary
+  WHERE active
+  GROUP BY master_hostname
+  ;"
+
+  if [ $QUIET -eq 0 ]; then
+    psql $PG_OPTS -d $DB -c "select pg_current_xlog_location(), pg_xlogfile_name(pg_current_xlog_location());"
+  fi
+fi

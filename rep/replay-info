@@ -7,7 +7,7 @@ RESTART="0000000300002D8900000084"
 
 # TODO Figure this out by parsing the recovery.conf file.
 MASTER="dbXX"
-HOST=`hostname`
+HOST=`hostname -s`
 DB="dbXX"
 
 if [ "$MASTER" = "$HOST" ] ; then

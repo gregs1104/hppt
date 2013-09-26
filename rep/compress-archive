@@ -2,6 +2,9 @@
 #
 # Compress old WAL files
 #
+# Copyright 2012-2013 Gregory Smith gsmith@westnet.com
+# Contributions from Matthew Cox <matt.cox@runkeeper.com>
+
 set -o nounset
 
 # where are the WALs?

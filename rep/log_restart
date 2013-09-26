@@ -34,7 +34,7 @@ fi
 
 $STDERR Restartpoint is now $RESTART
 
-HOST=`hostname`
+HOST=`hostname -s`
 
 if [ "$MASTER" = "$HOST" ] ; then
   echo Running on master $MASTER, aborting
