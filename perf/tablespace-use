@@ -3,13 +3,14 @@
 #
 # Tablespace usage mapper
 #
-# Copyright 2012-2013 Gregory Smith gsmith@westnet.com
+# Copyright 2012-2015 Gregory Smith gsmith@westnet.com
 
-# TODO Parameterize
-DB="dbXX"
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
 
 # Indexes on high write relations
-psql -d $DB -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
   TS.spcname tbl_space,
 --  schemaname as nspname,
@@ -38,7 +39,7 @@ LIMIT 100;
 "
 
 # Indexes on high read relations
-psql -d $DB -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
   TS.spcname tbl_space,
 --  schemaname as nspname,
@@ -61,7 +62,7 @@ ORDER BY
 "
 
 # Top users of disk space
-psql -d $DB -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
   TS.spcname tbl_space,
   C.relname AS relation,

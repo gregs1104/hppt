@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Copyright 2009-2013 Gregory Smith gsmith@westnet.com
+# Copyright 2009-2015 Gregory Smith gsmith@westnet.com
 
-# TODO Parameterize
-db="dbXX"
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
 
 # Rank how much all indexes are used, looking for unused ones
-psql -d $db -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
   TS.spcname tbl_space,
 --  schemaname as nspname,

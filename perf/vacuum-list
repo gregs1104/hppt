@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# Copyright 2013 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
 
-# TODO Parameterize
-DB="dbXX"
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
 
-psql -At -d $DB  -c "
+psql $db ${HPPTOPTS} -At -c "
 SELECT 
 --nspname,
 --  relname,

@@ -6,15 +6,18 @@
 # xid wraparound, and show active sessions that are relevant to
 # autovacuum activity.
 #
-# Compatible with PostgreSQL versions up to 9.1.  The activity information
-# in this version will not work with PostgreSQL 9.2.
+# Compatible with PostgreSQL versions up to 9.1.  
+# TODO The activity information will not work with PostgreSQL >=9.2
 #
-# Copyright 2012 Gregory Smith greg@2ndquadrant.com
-# Licensed for use only by 2ndQuadrant customers
+# Copyright 2012-2015 Gregory Smith gsmith@westnet.com
+
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
 
 echo === Tables with many dead rows ===
 
-psql -c "
+psql $db ${HPPTOPTS} -c "
 SELECT 
   nspname,
   relname,n_dead_tup::numeric,
@@ -59,7 +62,7 @@ ORDER BY n_dead_tup DESC
 echo
 echo === Tables approaching wraparound ===
 
-psql  -c "
+psql $db ${HPPTOPTS} -c "
 SELECT 
   nspname,
   CASE WHEN relkind='t' THEN toastname ELSE relname END AS relname,
@@ -95,7 +98,7 @@ ORDER BY age(relfrozenxid) DESC, pg_total_relation_size(oid) DESC
 
 echo
 echo === Long running sessions ===
-psql -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
   case WHEN current_query='<IDLE>' then 'IDLE' else '' end as state,
   procpid,
@@ -106,7 +109,7 @@ where query_start < (now() - '3 hours'::interval) order by query_start"
 
 echo
 echo === Tables with stale statistics ===
-psql -c "
+psql $db ${HPPTOPTS} -c "
 SELECT 
   nspname,
   relname,
@@ -136,11 +139,13 @@ ORDER BY last_analyze NULLS FIRST
 
 echo
 echo === Running vacuum, analyze, and rebuild sessions ===
-psql -c "
+psql $db ${HPPTOPTS} -c "
 select procpid,waiting,now() - query_start as runtime,current_query from pg_stat_activity where current_query ilike 'autovacuum%' or current_query ilike 'VACUUM%' or current_query ilike 'ANALYZE%' or current_query ilike 'CREATE INDEX%' or current_query ilike 'CREATE UNIQUE INDEX%' order by query_start
 "
 
 echo
 echo === Major autovacuum settings ===
-psql -c "SELECT name,setting,(setting = boot_val) AS default FROM pg_settings WHERE name ILIKE 'autovacuum%' OR name IN ('vacuum_cost_limit')"
+psql $db ${HPPTOPTS} -c "
+SELECT name,setting,(setting = boot_val) AS default FROM pg_settings WHERE name ILIKE 'autovacuum%' OR name IN ('vacuum_cost_limit')
+"
 

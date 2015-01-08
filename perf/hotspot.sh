@@ -1,12 +1,15 @@
 #!/bin/bash
 
-# Copyright 2013 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
 
-# TODO Parameterize
-db="dbXX"
+# TODO Enable selecting the order by size version with a command line option
+
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
 
 # Order by table reads
-psql -d $db -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
   current_timestamp as collected,
   TS.spcname tbl_space,
@@ -47,7 +50,7 @@ exit 0
 
 # Order by size
 
-psql -d $db -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
 --  schemaname AS nspname,
   relname AS tablename,

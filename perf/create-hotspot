@@ -2,15 +2,17 @@
 # create_hotspot
 #
 # Create a table for tracking pgstatio data for both tables and indexes.  This
-# simply materializes the data that will collected using CREATE TABLE AS.
+# simply materializes the data that will collected using CREATE TABLE AS.  An
+# initial snapshot populates the table.
 #
-# Copyright 2013 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
 
-# TODO Parameterize
-db="dbXX"
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
 
 # Order by table reads
-psql -d $db -c "
+psql $db ${HPPTOPTS} -c "
 CREATE TABLE hotspot AS
 SELECT
   current_timestamp as collected,
@@ -46,5 +48,6 @@ FROM pg_statio_user_tables statio
     pg_tablespace TS ON (C.reltablespace = TS.oid)
 "
 
-psql -d $DB -c "
+psql $db ${HPPTOPTS} -c "
 CREATE INDEX hotspot_collected_idx ON hotspot USING btree(collected)
+"

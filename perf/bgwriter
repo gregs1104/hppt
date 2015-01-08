@@ -1,6 +1,10 @@
 #!/bin/bash
 
-psql -x -c "
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
+
+psql $db ${HPPTOPTS} -x -c "
 SELECT
   now(),
   block_size::numeric * buffers_alloc / (1024 * 1024 * seconds) AS alloc_mbps,

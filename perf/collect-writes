@@ -4,13 +4,14 @@
 # Collect data for tracking table writes
 # Right now this just reports the data, without saving it the way collect_hotspot does
 #
-# Copyright 2013 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
 
-# TODO Parameterize
-db="dbXX"
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
 
 # Totals per table
-psql -d $db -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
    current_timestamp as collected,
    TS.spcname tbl_space,
@@ -40,7 +41,7 @@ FROM pg_class C
   LIMIT 20
 "
 # Per-second data per table
-psql -d $db -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
   collected,
   tbl_space,
@@ -93,7 +94,7 @@ FROM pg_class C
 "
 
 # Database wide stats
-psql -d $db -x -c "
+psql $db ${HPPTOPTS} -x -c "
 SELECT
   round(tup_returned / sec_since_reset) AS returned_per_sec,
   round(tup_fetched / sec_since_reset) AS fetched_per_sec,

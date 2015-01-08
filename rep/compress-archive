@@ -2,10 +2,12 @@
 #
 # Compress old WAL files
 #
-# Copyright 2012-2013 Gregory Smith gsmith@westnet.com
+# Copyright 2012-2015 Gregory Smith gsmith@westnet.com
 # Contributions from Matthew Cox <matt.cox@runkeeper.com>
 
 set -o nounset
+
+# TODO Parameterize WAL directory location, and eventually the lag time
 
 # where are the WALs?
 ARCHIVE_DIR="/wal2"

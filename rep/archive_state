@@ -2,10 +2,12 @@
 #
 # Report on the state of replication
 #
-# Copyright 2012-2013 Gregory Smith gsmith@westnet.com
+# Copyright 2012-2015 Gregory Smith gsmith@westnet.com
 # Contributions from Matthew Cox <matt.cox@runkeeper.com>
 
 set -o nounset
+
+# TODO Make the master and database settings input parameters
 
 #################################################
 #

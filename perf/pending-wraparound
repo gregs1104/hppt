@@ -1,7 +1,10 @@
 #!/bin/bash
-# TODO Parameterize
-DB="dbXX"
-psql -d $DB  -c "
+
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
+
+psql $db ${HPPTOPTS} -c "
 SELECT 
 --nspname,
   relname,

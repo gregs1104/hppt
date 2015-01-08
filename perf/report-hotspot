@@ -5,13 +5,15 @@
 # Show pgstatio data for both tables and indexes. Reports on the difference between
 # the earliest and last data collected.
 #
-# Copyright 2013 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
 
-# TODO Parameterize
-db="dbXX"
+
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
 
 # Order by table reads
-psql -d $db -c "
+psql $db ${HPPTOPTS} -c "
 SELECT * FROM
 
 (
