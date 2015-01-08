@@ -43,7 +43,7 @@ LIMIT 30
 
 
 SELECT 
-  C.relname
+  C.relname, age(relfrozenxid)
 FROM pg_class C
   WHERE C.relkind IN ('r', 't')
 ORDER BY age(relfrozenxid) DESC
