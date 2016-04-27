@@ -6,7 +6,8 @@
 # xid wraparound, and show active sessions that are relevant to
 # autovacuum activity.
 #
-# Compatible with PostgreSQL versions >=9.2 
+# Compatible with PostgreSQL versions up to 9.1.  
+# TODO The activity information will not work with PostgreSQL >=9.2
 #
 # Copyright 2012-2015 Gregory Smith gsmith@westnet.com
 
@@ -97,15 +98,14 @@ ORDER BY age(relfrozenxid) DESC, pg_total_relation_size(oid) DESC
 
 echo
 echo === Long running sessions ===
-psql -c "
+psql $db ${HPPTOPTS} -c "
 SELECT
-  state,
-  pid,
+  case WHEN current_query='<IDLE>' then 'IDLE' else '' end as state,
+  procpid,
   now() - query_start as runtime,
-  query
+  current_query
 from pg_stat_activity
-where query_start < (now() - '3 hours'::interval) order by query_start
-"
+where query_start < (now() - '3 hours'::interval) order by query_start"
 
 echo
 echo === Tables with stale statistics ===
@@ -140,7 +140,7 @@ ORDER BY last_analyze NULLS FIRST
 echo
 echo === Running vacuum, analyze, and rebuild sessions ===
 psql $db ${HPPTOPTS} -c "
-select pid,waiting,now() - query_start as runtime,query from pg_stat_activity where query ilike 'autovacuum%' or query ilike 'VACUUM%' or query ilike 'ANALYZE%' or query ilike 'CREATE INDEX%' or query ilike 'CREATE UNIQUE INDEX%' order by query_start
+select procpid,waiting,now() - query_start as runtime,current_query from pg_stat_activity where current_query ilike 'autovacuum%' or current_query ilike 'VACUUM%' or current_query ilike 'ANALYZE%' or current_query ilike 'CREATE INDEX%' or current_query ilike 'CREATE UNIQUE INDEX%' order by query_start
 "
 
 echo

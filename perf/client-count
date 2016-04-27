@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# TODO This query is only for earlier versions of postgres <9.2 that
-# do not have "state" as a separate field.  This should check the version
-# and have an alternate code path for newer ones.
+# TODO This query is only for versions of postgres >=9.2 that
+# have "state" as a separate field.
 
 if [ -n "${HPPTDATABASE}" ] ; then
     db="-d ${HPPTDATABASE}"
@@ -10,13 +9,10 @@ fi
 
 psql $db ${HPPTOPTS} -c "
 SELECT
-    sum(CASE WHEN waiting THEN 1 ELSE 0 END) AS waiting,
-    sum(CASE WHEN current_query='<IDLE>' THEN 1 ELSE 0 END) AS idle,
-    sum(CASE WHEN current_query='<IDLE> in transaction' THEN 1 ELSE 0 END) AS idletransaction,
-    sum(CASE WHEN current_query='<insufficient privilege>' THEN 1 ELSE 0 END) as unknown,
-    sum(CASE WHEN NOT waiting AND current_query NOT IN ('<IDLE>', '<IDLE> in transaction', '<insufficient privilege>') THEN 1 ELSE 0 END) AS active
-FROM pg_stat_activity WHERE procpid != pg_backend_pid()
-;
+  state,count(*)
+  FROM pg_stat_activity
+  WHERE pid != pg_backend_pid()
+  GROUP BY state
 "
 
 # TODO Some users might prefer filtering only connections to a set of databases, such as:

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
+# For verions <= 9.1
+
+if [ -n "${HPPTDATABASE}" ] ; then
+    db="-d ${HPPTDATABASE}"
+fi
+
+psql $db ${HPPTOPTS} -c "
+select '!IDLE' as state, procpid,now() - query_start as runtime,current_query from pg_stat_activity where current_query!='<IDLE>' order by query_start limit 20
+"
+
+psql $db ${HPPTOPTS} -c "
+select 'IDLE' as state, procpid,now() - query_start as runtime,current_query from pg_stat_activity where current_query='<IDLE>' order by query_start limit 40
+"
+

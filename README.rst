@@ -35,8 +35,11 @@ TODO
   rep/restore-archive-file has a similar issue.
 
 * Several of the connection monitoring scripts in perf use pg_stat_activity, and
-  they will not work against PostgreSQL 9.2 or later versions due to a change in
-  that version.
+  they've been split into current >-9.2 and a deprecated 9.1 directory.  Ideally
+  there would only be one script and it would detect the server version.
+  Note that this is *not* the psql version, since the client may be running
+  a different version than the server.
+
 
 License
 =======

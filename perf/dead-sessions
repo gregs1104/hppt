@@ -7,12 +7,26 @@ if [ -n "${HPPTDATABASE}" ] ; then
 fi
 
 psql $db ${HPPTOPTS} -c "
-select 'IDLE' as state, procpid,now() - query_start as runtime,current_query from pg_stat_activity where query_start < (now() - '3 hours'::interval) and current_query='<IDLE>' order by query_start limit 40
+SELECT
+  state,
+  pid,
+  now() - query_start AS runtime,
+  query
+FROM pg_stat_activity
+WHERE
+  query_start < (now() - '3 hours'::interval) AND
+  (state='idle' OR state='idle in transaction')
+order by query_start limit 40
 "
 
 # List of dead session process IDs, suitable for sending into kill
-psql -d $db -At -q -c "
-select procpid from pg_stat_activity where query_start < (now() - '3 hours'::interval) and current_query='<IDLE>' order by query_start
+psql $db -At -q -c "
+SELECT
+  pid
+FROM pg_stat_activity
+WHERE
+  query_start < (now() - '3 hours'::interval) AND 
+  (state='idle' OR state='idle in transaction')
+ORDER BY query_start
 " | xargs echo
-
 

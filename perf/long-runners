@@ -9,10 +9,28 @@ if [ -n "${HPPTDATABASE}" ] ; then
 fi
 
 psql $db ${HPPTOPTS} -c "
-select '!IDLE' as state, procpid,now() - query_start as runtime,current_query from pg_stat_activity where current_query!='<IDLE>' order by query_start limit 20
+SELECT
+  state,
+  pid,
+  now() - query_start as runtime,
+  query
+FROM pg_stat_activity
+WHERE
+  NOT (state='idle' OR state='idle in transaction')
+ORDER BY query_start
+LIMIT 20
 "
 
 psql $db ${HPPTOPTS} -c "
-select 'IDLE' as state, procpid,now() - query_start as runtime,current_query from pg_stat_activity where current_query='<IDLE>' order by query_start limit 40
+SELECT
+  state,
+  pid,
+  now() - query_start AS runtime,
+  query
+FROM pg_stat_activity
+WHERE
+  (state='idle' OR state='idle in transaction')
+ORDER BY query_start
+LIMIT 40
 "
 
