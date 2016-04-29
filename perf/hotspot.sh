@@ -4,7 +4,9 @@
 
 # TODO Enable selecting the order by size version with a command line option
 
-if [ -n "${HPPTDATABASE}" ] ; then
+if [ -n "$1" ] ; then
+    db="-d $1"
+elif [ -n "${HPPTDATABASE}" ] ; then
     db="-d ${HPPTDATABASE}"
 fi
 

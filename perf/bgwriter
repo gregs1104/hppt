@@ -1,6 +1,8 @@
 #!/bin/bash
 
-if [ -n "${HPPTDATABASE}" ] ; then
+if [ -n "$1" ] ; then
+    db="-d $1"
+elif [ -n "${HPPTDATABASE}" ] ; then
     db="-d ${HPPTDATABASE}"
 fi
 

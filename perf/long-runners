@@ -2,9 +2,11 @@
 
 # Copyright 2013-2015 Gregory Smith gsmith@westnet.com
 
-# TODO Update for PostgreSQL 9.2 pg_stat_activity
+# Only compatible with PostgreSQL >=9.2 pg_stat_activity
 
-if [ -n "${HPPTDATABASE}" ] ; then
+if [ -n "$1" ] ; then
+    db="-d $1"
+elif [ -n "${HPPTDATABASE}" ] ; then
     db="-d ${HPPTDATABASE}"
 fi
 

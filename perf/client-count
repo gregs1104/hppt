@@ -3,7 +3,9 @@
 # TODO This query is only for versions of postgres >=9.2 that
 # have "state" as a separate field.
 
-if [ -n "${HPPTDATABASE}" ] ; then
+if [ -n "$1" ] ; then
+    db="-d $1"
+elif [ -n "${HPPTDATABASE}" ] ; then
     db="-d ${HPPTDATABASE}"
 fi
 

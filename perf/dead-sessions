@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# TODO Update for 9.2 pg_stat_activity change
+# Only runs against PostgreSQL >=9.2 due to the change
+# in pg_stat_activity in that version.
 
-if [ -n "${HPPTDATABASE}" ] ; then
+if [ -n "$1" ] ; then
+    db="-d $1"
+elif [ -n "${HPPTDATABASE}" ] ; then
     db="-d ${HPPTDATABASE}"
 fi
 

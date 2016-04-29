@@ -6,7 +6,9 @@
 #
 # Copyright 2013-2015 Gregory Smith gsmith@westnet.com
 
-if [ -n "${HPPTDATABASE}" ] ; then
+if [ -n "$1" ] ; then
+    db="-d $1"
+elif [ -n "${HPPTDATABASE}" ] ; then
     db="-d ${HPPTDATABASE}"
 fi
 

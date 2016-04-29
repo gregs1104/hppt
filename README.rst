@@ -20,6 +20,10 @@ variable.  Using HPPTOPTS instead directly adds entries to the psql command line
 allowing you to add any additional information needed for these scripts to run
 in your environment.
 
+Most scripts will accept the database name when provided on the command line:
+
+    perf/long-runners db01
+
 TODO
 ====
 
