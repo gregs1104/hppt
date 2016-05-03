@@ -20,8 +20,8 @@ SELECT
   END AS relname
 --n_dead_tup::numeric,
 --reltuples::numeric,
---  pg_size_pretty(pg_relation_size(oid)) as table_sz,
---  pg_size_pretty(pg_total_relation_size(oid)) as total_sz,
+--  pg_size_pretty(pg_relation_size(oid)) AS table_sz,
+--  pg_size_pretty(pg_total_relation_size(oid)) AS total_sz,
 --  age(relfrozenxid),
 --  freeze_max_age,
 --  last_vacuum
@@ -51,7 +51,7 @@ FROM
     AS av_threshold,
   date_trunc('day',greatest(pg_stat_get_last_vacuum_time(C.oid),pg_stat_get_last_autovacuum_time(C.oid)))::date AS last_vacuum,
   date_trunc('day',greatest(pg_stat_get_last_analyze_time(C.oid),pg_stat_get_last_analyze_time(C.oid)))::date AS last_analyze,
-  setting::integer as freeze_max_age
+  setting::integer AS freeze_max_age
  FROM pg_class C
   LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
   LEFT OUTER JOIN pg_class T ON (C.oid=T.reltoastrelid),

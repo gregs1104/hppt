@@ -3,8 +3,8 @@ SELECT
   --nspname,
   relname,n_dead_tup::numeric,
   reltuples::numeric,
-  pg_size_pretty(pg_relation_size(oid)) as table_sz,
-  pg_size_pretty(pg_total_relation_size(oid)) as total_sz,
+  pg_size_pretty(pg_relation_size(oid)) AS table_sz,
+  pg_size_pretty(pg_total_relation_size(oid)) AS total_sz,
   age(relfrozenxid),
   last_vacuum
   --last_analyze,

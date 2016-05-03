@@ -2,7 +2,8 @@
 
 # Copyright 2013-2015 Gregory Smith gsmith@westnet.com
 
-# Only compatible with PostgreSQL >=9.2 pg_stat_activity
+# This query is only for versions of postgres >=9.2 that
+# have pg_stat_activity.state as a separate field.
 
 if [ -n "$1" ] ; then
     db="-d $1"
@@ -14,7 +15,7 @@ psql $db ${HPPTOPTS} -c "
 SELECT
   state,
   pid,
-  now() - query_start as runtime,
+  now() - query_start AS runtime,
   query
 FROM pg_stat_activity
 WHERE

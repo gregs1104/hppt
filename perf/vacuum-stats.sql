@@ -3,8 +3,8 @@ SELECT
   --nspname,
   relname,n_dead_tup::numeric,
   reltuples::numeric,
-  pg_size_pretty(pg_relation_size(oid)) as table_sz,
-  pg_size_pretty(pg_total_relation_size(oid)) as total_sz,
+  pg_size_pretty(pg_relation_size(oid)) AS table_sz,
+  pg_size_pretty(pg_total_relation_size(oid)) AS total_sz,
   last_vacuum,
   last_analyze,
   --n_dead_tup > av_threshold AS "av_needed",
@@ -12,7 +12,7 @@ SELECT
     THEN round(100.0 * n_dead_tup / (reltuples))
     ELSE 0
     END
-      AS pct_dead
+    AS pct_dead
 FROM
 (SELECT
   c.oid,

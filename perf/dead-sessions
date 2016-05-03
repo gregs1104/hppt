@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Only runs against PostgreSQL >=9.2 due to the change
-# in pg_stat_activity in that version.
+# This query is only for versions of postgres >=9.2 that
+# have pg_stat_activity.state as a separate field.
 
 if [ -n "$1" ] ; then
     db="-d $1"
@@ -19,7 +19,7 @@ FROM pg_stat_activity
 WHERE
   query_start < (now() - '3 hours'::interval) AND
   (state='idle' OR state='idle in transaction')
-order by query_start limit 40
+ORDER BY query_start limit 40
 "
 
 # List of dead session process IDs, suitable for sending into kill

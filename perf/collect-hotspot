@@ -15,7 +15,7 @@ fi
 psql $db ${HPPTOPTS} -c "
 INSERT INTO hotspot (
 SELECT
-  current_timestamp as collected,
+  current_timestamp AS collected,
   TS.spcname tbl_space,
   schemaname AS nspname,
   statio.relname AS tablename,
@@ -32,7 +32,7 @@ FROM pg_statio_user_indexes statio
 WHERE (idx_blks_hit + idx_blks_read)>0
 UNION
 SELECT
-  current_timestamp as collected,
+  current_timestamp AS collected,
   TS.spcname tbl_space,
   schemaname AS nspname,
   statio.relname AS tablename,

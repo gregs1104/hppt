@@ -12,7 +12,7 @@ fi
 psql $db ${HPPTOPTS} -c "
 SELECT
   TS.spcname tbl_space,
---  schemaname as nspname,
+--  schemaname AS nspname,
   i.relname,
   i.indexrelname,
   i.idx_scan,
