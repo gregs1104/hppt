@@ -4,7 +4,7 @@
 # Collect data for tracking table writes
 # Right now this just reports the data, without saving it the way collect_hotspot does
 #
-# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2016 Gregory Smith gsmith@westnet.com
 
 if [ -n "$1" ] ; then
     db="-d $1"

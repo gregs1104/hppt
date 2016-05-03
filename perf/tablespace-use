@@ -3,7 +3,7 @@
 #
 # Tablespace usage mapper
 #
-# Copyright 2012-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2012-2016 Gregory Smith gsmith@westnet.com
 
 if [ -n "$1" ] ; then
     db="-d $1"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2016 Gregory Smith gsmith@westnet.com
 
 # TODO Enable selecting the order by size version with a command line option
 

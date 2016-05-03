@@ -3,7 +3,7 @@
 #
 # Collect data for tracking pgstatio data for both tables and indexes
 #
-# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2016 Gregory Smith gsmith@westnet.com
 
 if [ -n "$1" ] ; then
     db="-d $1"

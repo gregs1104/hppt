@@ -17,7 +17,7 @@
 # It's recommended to put "-s" early in the commend line, so that error
 # messages even during options parsing can be directed to syslog.
 #
-# Copyright 2012-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2012-2016 Gregory Smith gsmith@westnet.com
 
 usage()
 {

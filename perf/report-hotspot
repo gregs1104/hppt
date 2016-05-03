@@ -5,7 +5,7 @@
 # Show pgstatio data for both tables and indexes. Reports on the difference between
 # the earliest and last data collected.
 #
-# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2016 Gregory Smith gsmith@westnet.com
 
 
 if [ -n "$1" ] ; then

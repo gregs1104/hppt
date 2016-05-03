@@ -5,7 +5,7 @@
 # simply materializes the data that will collected using CREATE TABLE AS.  An
 # initial snapshot populates the table.
 #
-# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2016 Gregory Smith gsmith@westnet.com
 
 if [ -n "$1" ] ; then
     db="-d $1"

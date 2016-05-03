@@ -5,7 +5,7 @@
 # do not try to clean up here.  It also knows how to pull archives
 # from a remote repo too, one at a time.
 #
-# Copyright 2012-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2012-2016 Gregory Smith gsmith@westnet.com
 #
 # Being called with '%f %p %r'
 # Translation list:  %f=$1  %p=$2  $r=$3

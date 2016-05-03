@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2013-2015 Gregory Smith gsmith@westnet.com
+# Copyright 2013-2016 Gregory Smith gsmith@westnet.com
 
 # This query is only for versions of postgres >=9.2 that
 # have pg_stat_activity.state as a separate field.
